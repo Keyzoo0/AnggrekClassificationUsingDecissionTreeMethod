@@ -1,0 +1,27 @@
+# Claude Code workspace (worktrees, sessions, dll)
+.claude/
+
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+venv/
+env/
+.env
+.idea/
+.vscode/
+*.pkl
+data/raw/*/
+!data/raw/.gitkeep
+data/features/*.csv
+models/*.pkl
+models/*.json
+static/visualizations/*.png
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+*.log

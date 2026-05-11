@@ -392,11 +392,16 @@ rasio_labelium = area_labelium / area_bunga_total
 
 ### 7.4 Ringkasan Fitur
 
-| # | Nama Fitur | Tipe | Rentang | Sumber |
-|---|------------|------|---------|--------|
-| 1 | `diameter_relatif` | float | 0.0–1.0 | Bounding box bunga |
-| 2 | `jumlah_bintik` | int | 0–300+ | Blob detection |
-| 3 | `rasio_labelium` | float | 0.0–1.0 | Segmentasi labelium |
+> **Revisi implementasi:** Total fitur diperluas dari 3 ke **6 fitur** — 3 fitur utama (sesuai justifikasi botani) + 3 fitur supporting untuk memperkaya Decision Tree. Feature importance hasil training akan menunjukkan kontribusi tiap fitur.
+
+| # | Nama Fitur | Tipe | Rentang | Sumber | Kategori |
+|---|------------|------|---------|--------|----------|
+| 1 | `diameter_relatif` | float | 0.0–1.0 | Bounding box bunga | Utama |
+| 2 | `jumlah_bintik` | int | 0–300+ | Blob detection | Utama |
+| 3 | `rasio_labelium` | float | 0.0–1.0 | K-Means (k=2) berbasis saturasi | Utama |
+| 4 | `aspect_ratio` | float | 0.3–3.0 | Lebar ÷ tinggi bbox | Supporting |
+| 5 | `dominant_hue` | float | 0–180 | Median Hue di area bunga | Supporting |
+| 6 | `dominant_saturation` | float | 0–255 | Median Saturation di area bunga | Supporting |
 
 **Catatan untuk Skripsi:** Pada bab metodologi, jelaskan setiap fitur dengan:
 - Definisi formal
@@ -585,80 +590,81 @@ Visualisasi sebagai bar chart.
 
 ## 10. STRUKTUR PROYEK & FILE
 
+> **Catatan:** Struktur ini mencerminkan implementasi aktual yang dibangun. Frontend menggunakan **Vite + React + TypeScript + shadcn/ui** (lihat revisi pada Section 11).
+
 ```
-orchid-classifier/
-├── README.md
-├── requirements.txt
+AnggrekClassificationUsingDecissionTreeMethod/
+├── README.md                       # Setup guide & cara jalankan
+├── dokumentasi-proyek-anggrek.md   # Dokumen ini
+├── requirements.txt                # Python deps
 ├── .gitignore
 ├── run.py                          # Entry point: uvicorn launcher
 │
-├── app/                            # FastAPI application
+├── app/                            # FastAPI backend
 │   ├── __init__.py
-│   ├── main.py                     # FastAPI app instance
-│   ├── config.py                   # Konfigurasi (paths, params)
+│   ├── main.py                     # FastAPI app + serve React build
+│   ├── config.py                   # Path & konstanta
 │   │
 │   ├── routers/                    # API endpoints
 │   │   ├── __init__.py
-│   │   ├── dataset.py
-│   │   ├── model.py
-│   │   └── predict.py
+│   │   ├── dataset.py              # /api/dataset/*
+│   │   ├── model.py                # /api/model/*
+│   │   └── predict.py              # /api/predict/*
 │   │
 │   ├── services/                   # Business logic
 │   │   ├── __init__.py
-│   │   ├── feature_extractor.py    # Ekstrak 3 fitur
-│   │   ├── decision_tree_model.py  # Wrapper sklearn
+│   │   ├── image_processor.py      # Preprocessing + HSV + GrabCut segmentasi
+│   │   ├── feature_extractor.py    # Ekstrak 6 fitur morfologi
+│   │   ├── decision_tree_model.py  # Wrapper sklearn + decision path tracer
 │   │   ├── dataset_manager.py      # CRUD dataset
-│   │   ├── image_processor.py      # Segmentasi & preprocessing
-│   │   └── visualizer.py           # Generate tree image, CM
+│   │   └── visualizer.py           # Render tree, CM, FI (matplotlib)
 │   │
 │   └── schemas/                    # Pydantic models
-│       ├── __init__.py
-│       ├── dataset.py
-│       ├── model.py
-│       └── predict.py
+│       └── __init__.py
 │
-├── static/                         # Frontend
+├── frontend/                       # Vite + React + shadcn frontend
+│   ├── package.json
+│   ├── vite.config.ts              # Proxy /api → :8000
+│   ├── tailwind.config.js
+│   ├── tsconfig.json
 │   ├── index.html
-│   ├── css/
-│   │   └── style.css
-│   ├── js/
-│   │   ├── app.js
-│   │   ├── upload.js
-│   │   ├── training.js
-│   │   ├── predict.js
-│   │   └── webcam.js
-│   └── visualizations/             # Generated images (tree, CM)
+│   ├── src/
+│   │   ├── main.tsx                # React root
+│   │   ├── App.tsx                 # 3-tab layout
+│   │   ├── index.css               # Tailwind + theme tokens
+│   │   ├── pages/
+│   │   │   ├── Upload.tsx          # Tab 1: upload dataset
+│   │   │   ├── Training.tsx        # Tab 2: training + visualisasi
+│   │   │   └── Predict.tsx         # Tab 3: image/video/webcam
+│   │   ├── components/ui/          # shadcn primitives (manual)
+│   │   │   ├── button.tsx, card.tsx, tabs.tsx, input.tsx,
+│   │   │   ├── label.tsx, select.tsx, slider.tsx, table.tsx,
+│   │   │   ├── progress.tsx, badge.tsx, dialog.tsx
+│   │   └── lib/
+│   │       ├── api.ts              # fetch wrapper + TypeScript types
+│   │       └── utils.ts            # cn() utility
+│   └── dist/                       # Hasil build (auto, di-serve FastAPI)
 │
 ├── data/                           # Dataset & features
 │   ├── raw/
-│   │   ├── Phalaenopsis/*.jpg
+│   │   ├── Phalaenopsis/*.jpg      # Auto-created
 │   │   ├── Dendrobium/*.jpg
 │   │   └── Vanda/*.jpg
 │   └── features/
-│       └── features.csv
+│       └── features.csv            # Generated saat training
 │
 ├── models/                         # Trained models
 │   ├── decision_tree_latest.pkl
-│   ├── decision_tree_v1.pkl
-│   ├── decision_tree_v2.pkl
 │   └── training_history.json
 │
-├── notebooks/                      # Jupyter untuk eksperimen
-│   ├── 01_data_exploration.ipynb
-│   ├── 02_feature_extraction_test.ipynb
-│   └── 03_model_experiments.ipynb
+├── static/visualizations/          # Output matplotlib
+│   ├── tree.png
+│   ├── confusion_matrix.png
+│   └── feature_importance.png
 │
-├── tests/                          # Unit test (opsional tapi keren)
-│   ├── test_feature_extractor.py
-│   └── test_model.py
-│
-└── docs/                           # Dokumentasi skripsi
-    ├── proposal.md
-    ├── bab1_pendahuluan.md
-    ├── bab2_tinjauan_pustaka.md
-    ├── bab3_metodologi.md
-    ├── bab4_hasil.md
-    └── bab5_kesimpulan.md
+├── rawDataset/                     # Foto asli sebelum dilabeli per kelas
+└── laporan/
+    └── anggrek.pdf                 # Infografis acuan
 ```
 
 ---
@@ -680,15 +686,19 @@ orchid-classifier/
 
 ### 11.2 Frontend
 
+> **Revisi:** Saat implementasi, frontend di-upgrade dari vanilla JS ke **Vite + React + shadcn/ui** untuk UX yang lebih konsisten, komponen reusable, dan tampilan profesional saat demo sidang.
+
 | Komponen | Teknologi | Alasan |
 |----------|-----------|--------|
-| Markup | HTML5 | Standard |
-| Styling | Tailwind CSS (CDN) atau Vanilla CSS | Cepat, ringan |
-| Scripting | Vanilla JavaScript (ES6+) | No build tool, simple |
+| Build tool | Vite 5 | Dev server cepat, HMR, build optimal |
+| Framework | React 18 + TypeScript | Type-safe, komponen reusable |
+| Styling | Tailwind CSS 3 | Utility-first, konsisten |
+| UI primitives | shadcn/ui (Radix UI + Tailwind) | Aksesibel, customizable, tidak vendor lock-in |
+| Icons | Lucide React | Konsisten dengan shadcn |
+| Charts | Chart.js + react-chartjs-2 | Probability bar chart |
 | Webcam | `getUserMedia()` API | Native browser |
-| Charts | Chart.js (CDN) | Untuk probability bar chart |
 | HTTP | Fetch API | Native |
-| WebSocket | Native WebSocket API | Untuk webcam streaming |
+| WebSocket | Native WebSocket | Streaming webcam → backend |
 
 ### 11.3 Development Tools
 
@@ -707,9 +717,10 @@ orchid-classifier/
 | TensorFlow/PyTorch | Tidak butuh deep learning |
 | Roboflow | Tidak butuh annotation bounding box |
 | Google Colab | Training cepat, bisa local |
-| React/Vue | Overkill untuk skala ini |
+| Next.js / SSR framework | Tidak butuh server-side rendering |
 | Docker | Tidak butuh containerization untuk skripsi |
 | Database (MySQL/PostgreSQL) | File system cukup, dataset tidak besar |
+| rembg (deep BG removal) | Belum stabil di Python 3.14; HSV+GrabCut sudah cukup |
 
 ---
 
@@ -934,6 +945,12 @@ Dokumentasi ini adalah **living document** — boleh direvisi seiring perkembang
 
 ---
 
-**Versi Dokumen:** 1.0
-**Tanggal:** 11 Mei 2026
-**Status:** Draft Awal — Siap Diskusi
+**Versi Dokumen:** 1.1
+**Tanggal:** 12 Mei 2026
+**Status:** Sinkron dengan implementasi — Fase MVP siap digunakan
+
+**Changelog 1.1:**
+- Frontend: vanilla JS → Vite + React + TypeScript + shadcn/ui
+- Fitur: 3 → 6 (tambah aspect_ratio, dominant_hue, dominant_saturation)
+- Segmentasi: HSV thresholding + GrabCut refinement (auto-pick dominant flower)
+- Python: tested pada 3.14.5 (sklearn 1.8, opencv 4.13, numpy 2.4)
