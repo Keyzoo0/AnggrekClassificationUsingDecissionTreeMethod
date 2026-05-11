@@ -1,4 +1,5 @@
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Query
+from fastapi.responses import FileResponse
 from app.services import dataset_manager
 
 router = APIRouter(prefix="/api/dataset", tags=["dataset"])
@@ -43,3 +44,25 @@ async def clear_dataset(cls: str | None = Query(None, alias="class")):
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return {"success": True, "deleted_count": deleted, "stats": dataset_manager.stats()}
+
+
+@router.get("/image/{cls}/{filename}")
+async def get_image(cls: str, filename: str):
+    path = dataset_manager.get_file_path(cls, filename)
+    if path is None:
+        raise HTTPException(status_code=404, detail="File tidak ditemukan")
+    return FileResponse(str(path))
+
+
+@router.delete("/file")
+async def delete_file(
+    cls: str = Query(..., alias="class"),
+    filename: str = Query(...),
+):
+    try:
+        ok = dataset_manager.delete_file(cls, filename)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if not ok:
+        raise HTTPException(status_code=404, detail="File tidak ditemukan")
+    return {"success": True, "stats": dataset_manager.stats()}

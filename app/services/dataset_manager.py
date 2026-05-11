@@ -54,6 +54,32 @@ def list_files(cls: str | None = None):
     return out
 
 
+def delete_file(cls: str, filename: str) -> bool:
+    if not _valid_class(cls):
+        raise ValueError(f"Kelas tidak valid: {cls}")
+    # Cegah path traversal
+    safe_name = Path(filename).name
+    target = RAW_DIR / cls / safe_name
+    if not target.exists() or not target.is_file():
+        return False
+    if target.suffix.lower() not in ALLOWED_IMAGE_EXT:
+        raise ValueError("Bukan file gambar valid")
+    target.unlink()
+    return True
+
+
+def get_file_path(cls: str, filename: str) -> Path | None:
+    if not _valid_class(cls):
+        return None
+    safe_name = Path(filename).name
+    target = RAW_DIR / cls / safe_name
+    if not target.exists() or not target.is_file():
+        return None
+    if target.suffix.lower() not in ALLOWED_IMAGE_EXT:
+        return None
+    return target
+
+
 def clear(cls: str | None = None) -> int:
     deleted = 0
     classes = [cls] if cls else CLASSES

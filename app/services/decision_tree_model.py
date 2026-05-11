@@ -49,12 +49,34 @@ def train(max_depth=5, criterion="gini", test_size=0.2, min_samples_split=4,
     X = df[FEATURE_NAMES].values
     y = df["class"].values
 
-    # Stratify hanya jika tiap kelas punya min 2 sampel
+    n_samples = len(df)
+    n_classes = len(classes_present)
     counts = df["class"].value_counts()
-    stratify = y if counts.min() >= 2 else None
+
+    # Hitung jumlah sampel test yang akan dihasilkan
+    n_test = max(int(round(test_size * n_samples)), 1)
+
+    # Coba pakai stratify, tapi butuh n_test >= n_classes dan min 2 sampel per kelas
+    use_stratify = counts.min() >= 2 and n_test >= n_classes
+    stratify = y if use_stratify else None
+
+    # Kalau stratify dipakai, naikkan n_test ke minimum n_classes
+    if use_stratify and n_test < n_classes:
+        n_test = n_classes
+
+    # Pastikan train set juga punya minimum 1 sampel per kelas
+    if n_samples - n_test < n_classes:
+        n_test = n_samples - n_classes
+
+    if n_test < 1 or n_test >= n_samples:
+        raise RuntimeError(
+            f"Dataset terlalu sedikit untuk split train/test "
+            f"({n_samples} sampel, {n_classes} kelas). "
+            f"Tambah dataset ke min {n_classes * 3} sampel total."
+        )
 
     X_train, X_test, y_train, y_test = train_test_split(
-        X, y, test_size=test_size, random_state=random_state, stratify=stratify
+        X, y, test_size=n_test, random_state=random_state, stratify=stratify
     )
 
     clf = DecisionTreeClassifier(
